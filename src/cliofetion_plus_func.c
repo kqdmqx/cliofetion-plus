@@ -1,6 +1,9 @@
 /***************************************************************************
- *   Copyright (C) 2010 by lwp                                             *
- *   levin108@gmail.com                                                    *
+ *   This file is part of project cliofetion_plus                          *
+ *   Copyright (C) 2011 kqdmqx <kqdmqx@gmail.com>                          *
+ *   Copyright (C) 2011 glace <glacebai@gmail.com>                         * 
+ *   Copyright (C) 2011 DoDo                                               *
+ *   Copyright (C) 2011 lucifer                                            *
  *                                                                         *
  *   This program is free software; you can redistribute it and/or modify  *
  *   it under the terms of the GNU General Public License as published by  *

@@ -1,3 +1,4 @@
 *.o
 *.sh
 makefile
+libofetion/
