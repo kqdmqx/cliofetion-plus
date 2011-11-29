@@ -28,6 +28,8 @@
 #include <string.h>
 #include "cliofetion_plus_func.h"
 
+typedef enum {WRONG,SEND,ADD_BUDDY,CHECK_BUDDY} function_t;
+
 struct globalArgs_t {
 /* option inputed flags */
     int function_inputed;
@@ -36,9 +38,12 @@ struct globalArgs_t {
     int target_number_inputed;
     int number_type_inputed;
     int msg_inputed;
+    int localname_inputed;
+    int desc_inputed;
 
 /* option arguments */
-    const char *function;
+//    const char *function;
+    function_t function;
     const char *user_number;
     const char *password;
     const char *target_number;
@@ -90,7 +95,7 @@ void display_usage( void )
 
 void initialize_global_args() {
     globalArgs.function_inputed = 0;
-    globalArgs.function = NULL;
+    globalArgs.function = WRONG;
     globalArgs.user_number_inputed = 0;
     globalArgs.user_number = NULL;
     globalArgs.password_inputed = 0;
@@ -98,16 +103,40 @@ void initialize_global_args() {
 
     globalArgs.target_number_inputed = 0;
     globalArgs.target_number = NULL;
+    globalArgs.number_type_inputed = 0;
     globalArgs.msg_inputed = 0;
     globalArgs.msg = NULL;
 
+    globalArgs.localname_inputed = 0;
+    globalArgs.localname = NULL;
+    globalArgs.desc = NULL;
+
 }
 
+void set_global_function(char * func) {
+	if(strcmp("send",func) == 0) {
+        globalArgs.function = SEND;
+    } else if(strcmp("addbuddy",func) == 0) {
+        globalArgs.function = ADD_BUDDY;
+    } else if(strcmp("checkbuddy",func) == 0) {
+        globalArgs.function = CHECK_BUDDY;
+    }
+}
 
+void set_global_number_type(char *notype) {
+    if(strcmp(notype,"fetion") == 0) {
+        globalArgs.number_type = FETION_NO;
+    } else if(strcmp(notype,"mobile") == 0) {
+        globalArgs.number_type = MOBILE_NO;
+    } else {
+        globalArgs.number_type_inputed = 0;
+        debug_error("targetNumberType must be fetion or mobile");
+        exit(1);
+    }
+}
 
-int main( int argc, char *argv[] )
-{
-	int opt = 0;
+void parse_cmd_opt(int argc, char *argv[]) {
+   	int opt = 0;
 	int longIndex = 0;
 	
 	/* Initialize globalArgs before we get to work. */
@@ -121,8 +150,8 @@ int main( int argc, char *argv[] )
 		switch( opt ) {
 			case 'f':
 				globalArgs.function_inputed = 1;
-                globalArgs.function = optarg;
-				break;
+                set_global_function(optarg);
+                break;
 				
 			case 'u':
 				globalArgs.user_number_inputed = 1;
@@ -141,20 +170,22 @@ int main( int argc, char *argv[] )
 
             case 'T':
                 globalArgs.number_type_inputed = 1;
-                if(strcmp(optarg,"fetion") == 0) {
-                    globalArgs.number_type = FETION_NO;
-                } else if(strcmp(optarg,"mobile") == 0) {
-                    globalArgs.number_type = MOBILE_NO;
-                } else {
-                    globalArgs.number_type_inputed = 0;
-                    fprintf(stderr,"Wrong parameter:targetNumberType must be fetion or mobile\n");
-                    exit(1);
-                }
+                set_global_number_type(optarg);
 			    break;
 
             case 'm':
                 globalArgs.msg_inputed = 1;
                 globalArgs.msg = optarg;
+                break;
+
+            case 'l':
+                globalArgs.localname_inputed = 1;
+                globalArgs.localname = optarg;
+                break;
+
+            case 'd':
+                globalArgs.desc_inputed = 1;
+                globalArgs.desc = optarg;
                 break;
 
 			case 'h':	/* fall-through is intentional */
@@ -172,26 +203,124 @@ int main( int argc, char *argv[] )
 		opt = getopt_long( argc, argv, optString, longOpts, &longIndex );
 	}
 
-    if(!globalArgs.user_number_inputed || !globalArgs.password_inputed || !globalArgs.function_inputed) {
-        fprintf(stderr,"miss parameter:user_number, password or function\n");
-        display_usage();
+}
+
+int can_longin() {
+    if(!globalArgs.user_number_inputed){
+        debug_error("miss user number");
+        return 0;
     }
-    if( !globalArgs.target_number_inputed || !globalArgs.number_type_inputed || !globalArgs.msg_inputed) {
-        fprintf(stderr,"miss parameter:targetnumber, targetnumbertype or message\n");
+    if(!globalArgs.password_inputed){
+        debug_error("miss password");
+        return 0;
+    }
+    return 1;
+}
+
+int can_send() {
+    if(!globalArgs.target_number_inputed) {
+        debug_error("miss target number");
+        return 0;
+    }
+    if(!globalArgs.number_type_inputed) {
+        debug_error("miss number type");
+        return 0;
+    }
+    if(!globalArgs.msg_inputed) {
+        debug_error("miss message");
+        return 0;
+    }
+    return 1;
+}
+
+int can_add() {
+    if(!globalArgs.target_number_inputed) {
+        debug_error("miss target number");
+        return 0;
+    }
+    if(!globalArgs.number_type_inputed) {
+        debug_error("miss number type");
+        return 0;
+    }
+    if(!globalArgs.desc_inputed) {
+        debug_error("miss description");
+        return 0;
+    }
+    return 1;
+}
+
+int can_check() {
+    if(!globalArgs.target_number_inputed) {
+        debug_error("miss target number");
+        return 0;
+    }
+    if(!globalArgs.number_type_inputed) {
+        debug_error("miss number type");
+        return 0;
+    }
+    return 1;
+}
+
+int do_chosen_function(){
+    int result = 0;
+    if(!globalArgs.function_inputed) {
         display_usage();
+        exit(1);
     }
 
     User *user;
+    if(!can_longin()) {
+        debug_error("cant login");
+        exit(1);
+    }
 
-    user = fx_login(globalArgs.user_number, globalArgs.password);
+    user = fx_login(globalArgs.user_number, globalArgs.password);     
     if(!user)
-	    return 1;
-
-    if(fx_send_message(user,globalArgs.user_number, globalArgs.target_number, globalArgs.msg, globalArgs.number_type))
         return 1;
+
+    switch(globalArgs.function) {
+        case SEND:
+            if(!can_send()) {
+                debug_error("cant send");
+                result = 1;
+                break;
+            }
+            result = fx_send_message(user,globalArgs.user_number, globalArgs.target_number, globalArgs.msg, globalArgs.number_type);
+            break;
+        case ADD_BUDDY:
+            if(!can_add()) {
+                debug_error("cant add");
+                result = 1;
+                break;
+            }
+            if(!globalArgs.localname_inputed) {
+                result = fx_add_buddy(user,globalArgs.number_type,globalArgs.target_number,"",globalArgs.desc);
+            } else {
+                result = fx_add_buddy(user,globalArgs.number_type,globalArgs.target_number,globalArgs.localname,globalArgs.desc);
+            }
+            break;
+        case CHECK_BUDDY:
+            if(!can_check()) {
+                debug_error("cant check");
+                result = 1;
+                break;
+            }
+            result = fx_check_buddy(user,globalArgs.target_number,globalArgs.number_type); 
+            break;
+        default:
+            debug_error("Unknown function");
+    }
 
     fx_logout(user);
 
+    return result;
+}
+
+
+int main( int argc, char *argv[] ) {
+    parse_cmd_opt(argc,argv);
+    if(do_chosen_function())
+        return 1;
 	
 	return 0;
 }
