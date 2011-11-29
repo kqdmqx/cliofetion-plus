@@ -18,11 +18,12 @@
  *   59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.             *
  ***************************************************************************/
  
-#include "clifetion_plus_func.h" 
+#include "cliofetion_plus_func.h" 
 #define BUFLEN 1024
  
-int fx_login(User *user, const char *mobileno, const char *password)
+User* fx_login(const char *mobileno, const char *password)
 {
+    User             *user;
 	Config           *config;
 	FetionConnection *tcp;
 	FetionSip        *sip;
@@ -55,18 +56,18 @@ int fx_login(User *user, const char *mobileno, const char *password)
 	 * for other reason like password error */
 	if(USER_AUTH_NEED_CONFIRM(user) || USER_AUTH_ERROR(user)) {
 		debug_error("authencation failed");
-		return 1;
+		return NULL;
 	}
  
 	/* initialize configuration for current user */
 	if(fetion_user_init_config(user) == -1) {
 		debug_error("initialize configuration");
-		return 1;
+		return NULL;
 	}
  
 	if(fetion_config_download_configuration(user) == -1) {
 		debug_error("download configuration");
-		return 1;
+		return NULL;
 	}
  
 	/* set user's login state to be hidden */
@@ -80,7 +81,7 @@ int fx_login(User *user, const char *mobileno, const char *password)
 	tcp = tcp_connection_new();
 	if((ret = tcp_connection_connect(tcp, config->sipcProxyIP, config->sipcProxyPort)) == -1) {
 		debug_error("connect sipc server %s:%d\n", config->sipcProxyIP, config->sipcProxyPort);
-		return 1;
+		return NULL;
 	}
  
 	/* construct a sip object with the tcp object and attach it to user object */
@@ -90,7 +91,7 @@ int fx_login(User *user, const char *mobileno, const char *password)
 	/* register to sipc server */
 	if(!(res = sipc_reg_action(user))) {
 		debug_error("register to sipc server");
-		return 1;
+		return NULL;
 	}
  
 	parse_sipc_reg_response(res, &nonce, &key);
@@ -105,12 +106,12 @@ int fx_login(User *user, const char *mobileno, const char *password)
 	/* sipc authencation,you can printf res to see what you received */
 	if(!(res = sipc_aut_action(user, response))) {
 		debug_error("sipc authencation");
-		return 1;
+		return NULL;
 	}
  
 	if(parse_sipc_auth_response(res, user, &group_count, &buddy_count) == -1) {
 		debug_error("authencation failed");
-		return 1;
+		return NULL;
 	}
  
 	free(res);
@@ -118,7 +119,7 @@ int fx_login(User *user, const char *mobileno, const char *password)
  
 	if(USER_AUTH_ERROR(user) || USER_AUTH_NEED_CONFIRM(user)) {
 		debug_error("login failed");
-		return 1;
+		return NULL;
 	}
  
 	/* save the user information and contact list information back to the local database */
@@ -132,17 +133,18 @@ int fx_login(User *user, const char *mobileno, const char *password)
 	char buf[1024];
 	if(setsockopt(user->sip->tcp->socketfd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv)) == -1) {
 		debug_error("settimeout");
-		return 1;
+		return NULL;
 	}
 	tcp_connection_recv(user->sip->tcp, buf, sizeof(buf));
  
-	return 0;
+	return user;
 }
 
-void fx_logout(User *user)
+int fx_logout(User *user)
 {
-    fetion_free_user(user);
+    fetion_user_free(user);
     user = NULL;
+    return 0;
 }
 
 
@@ -156,7 +158,7 @@ int fx_send_message(User *user, const char *mobileno, const char *receiveno, con
 	int           monthcount;
  
 	/* send this message to yourself */
-	if(*receiveno == '\0' || strcmp(receiveno, mobileno) == 0 || strcmp(receiveno, fetion_sip_get_sid_by_sipuri(user->sipuri)) == 0 ) {
+	if(strcmp(receiveno,"") == 0 || strcmp(receiveno, mobileno) == 0 || strcmp(receiveno, fetion_sip_get_sid_by_sipuri(user->sipuri)) == 0 ) {
 		/* construct a conversation object with the sipuri to set NULL
 		 * to send a message to yourself  */
 		conv = fetion_conversation_new(user, NULL, NULL);

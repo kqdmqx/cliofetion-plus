@@ -7,7 +7,7 @@
  
 #define BUFLEN 1024
 
-extern int fx_login(User *user, const char *mobileno, const char *password);
+extern User* fx_login(const char *mobileno, const char *password);
 
 extern int fx_logout(User *user);
 
