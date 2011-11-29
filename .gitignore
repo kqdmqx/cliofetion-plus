@@ -3,3 +3,5 @@
 makefile
 libofetion/
 cliofetion_plus.vimentry
+bin/
+sample/
