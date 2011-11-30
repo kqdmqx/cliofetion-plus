@@ -27,6 +27,7 @@
 #include <getopt.h>
 #include <string.h>
 #include "cliofetion_plus_func.h"
+#include "cliofetion_plus_suicide.h"
 #include "xmlitem.h"
 
 typedef enum {WRONG,SEND,ADD_BUDDY,CHECK_BUDDY} function_t;
@@ -43,6 +44,7 @@ struct globalArgs_t {
     int desc_inputed;
     int input_file_inputed;
     int create_success_file;
+    int suicide;
 
 /* option arguments */
 //    const char *function;
@@ -59,7 +61,7 @@ struct globalArgs_t {
     const char *input_file;
 } globalArgs;
 
-static const char *optString = "f:u:p:t:T:d:g:l:m:i:rh?";
+static const char *optString = "f:u:p:t:T:d:g:l:m:i:s:rh?";
 
 static const struct option longOpts[] = {
     { "function", required_argument, NULL, 'f' },
@@ -72,6 +74,7 @@ static const struct option longOpts[] = {
     { "group", required_argument, NULL, 'g'},
     { "localname", required_argument, NULL, 'l'},
     { "input_file", required_argument, NULL, 'i'},
+    { "suicide", required_argument, NULL, 's'},
     { "result_file" ,no_argument, NULL, 'r'},
     { "help", no_argument, NULL, 'h' },
     { NULL, no_argument, NULL, 0 }
@@ -94,7 +97,8 @@ void display_usage( void )
     printf("-l\tlocalname\tnew contact's localname\n");
     printf("-g\tgroup\tnew contact's group\n");
     printf("-i\tinput_file\tinput by this file\n");
-    printf("-r\tresult_file\tcreate a fetion.success in current dir while successly msg is sent");
+    printf("-r\tresult_file\tcreate a fetion.success in current dir while successly msg is sent\n");
+    printf("-s\tsuicide\tkill the process after n secends\n");
 	exit(1);
 }
 
@@ -117,6 +121,8 @@ void initialize_global_args() {
     globalArgs.desc = NULL;
 
     globalArgs.create_success_file = 0;
+
+    globalArgs.suicide = 0;
 }
 
 void set_global_function(char * func) {
@@ -201,6 +207,11 @@ void parse_cmd_opt(int argc, char *argv[]) {
 
             case 'r':
                 globalArgs.create_success_file = 1;
+                break;
+
+            case 's':
+                globalArgs.suicide = 1;
+                fx_sui_set_time_limit((unsigned)xatoi(optarg));
                 break;
 
 			case 'h':	/* fall-through is intentional */
@@ -328,6 +339,10 @@ int do_chosen_function(){
     if(!globalArgs.function_inputed) {
         display_usage();
         exit(1);
+    }
+
+    if(globalArgs.suicide) {
+        fx_sui_start_killer_thread();
     }
 
     User *user;
