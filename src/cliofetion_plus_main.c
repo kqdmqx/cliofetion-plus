@@ -42,6 +42,7 @@ struct globalArgs_t {
     int localname_inputed;
     int desc_inputed;
     int input_file_inputed;
+    int create_success_file;
 
 /* option arguments */
 //    const char *function;
@@ -58,7 +59,7 @@ struct globalArgs_t {
     const char *input_file;
 } globalArgs;
 
-static const char *optString = "f:u:p:t:T:d:g:l:m:i:h?";
+static const char *optString = "f:u:p:t:T:d:g:l:m:i:rh?";
 
 static const struct option longOpts[] = {
     { "function", required_argument, NULL, 'f' },
@@ -71,6 +72,7 @@ static const struct option longOpts[] = {
     { "group", required_argument, NULL, 'g'},
     { "localname", required_argument, NULL, 'l'},
     { "input_file", required_argument, NULL, 'i'},
+    { "result_file" ,no_argument, NULL, 'r'},
     { "help", no_argument, NULL, 'h' },
     { NULL, no_argument, NULL, 0 }
 };
@@ -82,16 +84,17 @@ void display_usage( void )
 	/* ... */
     printf("Cliofetion-plus\t Copyright:kqdmqx\n");
     printf("Generic Options\n");
-    printf("-h\thelp\tShow this message.\n");
+    printf("-h\thelp\t\tShow this message.\n");
     printf("-f\tfunction\tselect a function\n");
     printf("-u\tuser_number\tspecify your mobile number or fetion number to login\n");
     printf("-p\tpassword\tspecify your password\n");
     printf("-t\ttarget_number\tspecify the number you want to send a message to or to add as a new contact\n");
     printf("-T\tnumber_type\tspecify the target number's type\n");
-    printf("-d\tdesc\tdescribe yourself when add a new contact\n");
+    printf("-d\tdesc\t\tdescribe yourself when add a new contact\n");
     printf("-l\tlocalname\tnew contact's localname\n");
     printf("-g\tgroup\tnew contact's group\n");
     printf("-i\tinput_file\tinput by this file\n");
+    printf("-r\tresult_file\tcreate a fetion.success in current dir while successly msg is sent");
 	exit(1);
 }
 
@@ -113,6 +116,7 @@ void initialize_global_args() {
     globalArgs.localname = NULL;
     globalArgs.desc = NULL;
 
+    globalArgs.create_success_file = 0;
 }
 
 void set_global_function(char * func) {
@@ -193,6 +197,10 @@ void parse_cmd_opt(int argc, char *argv[]) {
             case 'i':
                 globalArgs.input_file_inputed = 1;
                 globalArgs.input_file = optarg;
+                break;
+
+            case 'r':
+                globalArgs.create_success_file = 1;
                 break;
 
 			case 'h':	/* fall-through is intentional */
@@ -285,19 +293,38 @@ int can_check() {
     return 1;
 }
 
-int send_msg_in_file(User *user) {
+int send_msg_in_file(User *user,int *msg_count) {
     importXmlItemFileForAlarm(globalArgs.input_file, xmlItemAlarmList, &xmlItemListAlarmTotal);
-
-    int i;
-    for (i=1;i<=xmlItemListAlarmTotal;i++)
-        if(fx_send_message(user,globalArgs.user_number, globalArgs.target_number, xmlItemAlarmList[i].message, globalArgs.number_type))
-            return 1;
     
+    int result = 0;
+    int i;
+    for (i=1;i<=xmlItemListAlarmTotal;i++) {
+        if(fx_send_message(user,globalArgs.user_number, globalArgs.target_number, xmlItemAlarmList[i].message, globalArgs.number_type)){
+            result = 1;
+            break;
+        } else {
+            (*msg_count)++;
+        }
+    }
+
+    return result;
+}
+
+int create_success_file() {
+    FILE *fp;
+    if((fp = fopen("./fetion.success","wb")) == NULL) {
+        return 1;
+    }
+
+    fclose(fp);
     return 0;
 }
 
 int do_chosen_function(){
     int result = 0;
+    int success_flag = 0;
+    int msg_count = 0;
+
     if(!globalArgs.function_inputed) {
         display_usage();
         exit(1);
@@ -316,14 +343,24 @@ int do_chosen_function(){
     switch(globalArgs.function) {
         case SEND:
             if(can_send_by_file()) {
-                send_msg_in_file(user);
+                result = send_msg_in_file(user,&msg_count);
+                if(!result)
+                    success_flag++;
             }
-            if(!can_send()) {
-                debug_error("cant send");
-                result = 1;
-                break;
+            if(can_send()) {
+                success_flag--;
+                result = fx_send_message(user,globalArgs.user_number, globalArgs.target_number, globalArgs.msg, globalArgs.number_type);
+                if(!result){
+                    success_flag++;
+                    msg_count++;
+                }
             }
-            result = fx_send_message(user,globalArgs.user_number, globalArgs.target_number, globalArgs.msg, globalArgs.number_type);
+            if( globalArgs.create_success_file && success_flag) {
+                create_success_file();
+            }
+            if(msg_count == 0) {
+                debug_error("no message has been sent");
+            }
             break;
         case ADD_BUDDY:
             if(!can_add()) {
