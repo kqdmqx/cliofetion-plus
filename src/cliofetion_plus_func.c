@@ -1,5 +1,5 @@
 /***************************************************************************
- *   This file is part of project cliofetion_plus                          *
+ *   This file is part of  Cliofetion+ Project                             *
  *   Copyright (C) 2011 kqdmqx <kqdmqx@gmail.com>                          *
  *   Copyright (C) 2011 glace <glacebai@gmail.com>                         * 
  *   Copyright (C) 2011 DoDo                                               *

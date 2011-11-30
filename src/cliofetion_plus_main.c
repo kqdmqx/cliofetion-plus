@@ -1,5 +1,5 @@
 /***************************************************************************
- *   This file is part of project cliofetion_plus                          *
+ *   This file is part of  Cliofetion+ Project                             *
  *   Copyright (C) 2011 kqdmqx <kqdmqx@gmail.com>                          *
  *   Copyright (C) 2011 glace <glacebai@gmail.com>                         * 
  *   Copyright (C) 2011 DoDo                                               *
@@ -27,6 +27,7 @@
 #include <getopt.h>
 #include <string.h>
 #include "cliofetion_plus_func.h"
+#include "xmlitem.h"
 
 typedef enum {WRONG,SEND,ADD_BUDDY,CHECK_BUDDY} function_t;
 
@@ -40,6 +41,7 @@ struct globalArgs_t {
     int msg_inputed;
     int localname_inputed;
     int desc_inputed;
+    int input_file_inputed;
 
 /* option arguments */
 //    const char *function;
@@ -188,6 +190,11 @@ void parse_cmd_opt(int argc, char *argv[]) {
                 globalArgs.desc = optarg;
                 break;
 
+            case 'i':
+                globalArgs.input_file_inputed = 1;
+                globalArgs.input_file = optarg;
+                break;
+
 			case 'h':	/* fall-through is intentional */
 			case '?':
 				display_usage();
@@ -209,9 +216,26 @@ int can_longin() {
     if(!globalArgs.user_number_inputed){
         debug_error("miss user number");
         return 0;
+    
     }
     if(!globalArgs.password_inputed){
         debug_error("miss password");
+        return 0;
+    }
+    return 1;
+}
+
+int can_send_by_file() {
+    if(!globalArgs.target_number_inputed) {
+        debug_error("miss target number");
+        return 0;
+    }
+    if(!globalArgs.number_type_inputed) {
+        debug_error("miss number type");
+        return 0;
+    }
+    if(!globalArgs.input_file_inputed) {
+        debug_info("no input file");
         return 0;
     }
     return 1;
@@ -227,7 +251,7 @@ int can_send() {
         return 0;
     }
     if(!globalArgs.msg_inputed) {
-        debug_error("miss message");
+        debug_info("no message from cmd");
         return 0;
     }
     return 1;
@@ -261,6 +285,17 @@ int can_check() {
     return 1;
 }
 
+int send_msg_in_file(User *user) {
+    importXmlItemFileForAlarm(globalArgs.input_file, xmlItemAlarmList, &xmlItemListAlarmTotal);
+
+    int i;
+    for (i=1;i<=xmlItemListAlarmTotal;i++)
+        if(fx_send_message(user,globalArgs.user_number, globalArgs.target_number, xmlItemAlarmList[i].message, globalArgs.number_type))
+            return 1;
+    
+    return 0;
+}
+
 int do_chosen_function(){
     int result = 0;
     if(!globalArgs.function_inputed) {
@@ -280,6 +315,9 @@ int do_chosen_function(){
 
     switch(globalArgs.function) {
         case SEND:
+            if(can_send_by_file()) {
+                send_msg_in_file(user);
+            }
             if(!can_send()) {
                 debug_error("cant send");
                 result = 1;
