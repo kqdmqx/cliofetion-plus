@@ -20,6 +20,8 @@
  *   Free Software Foundation, Inc.,                                       *
  *   59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.             *
  ***************************************************************************/
+#ifndef CLIOFETION_PLUS_FUNC_H
+#define CLIOFETION_PLUS_FUNC_H
 
 #include <openfetion.h>
 #include <sys/types.h>
@@ -41,3 +43,5 @@ extern int fx_add_buddy(User *user, NumberType notype,const char *no, const char
 extern int fx_send_message(User *user, const char *mobileno, const char *receiveno, const char *message, NumberType notype);
 
 extern int fx_print_buddylist(User *user);
+
+#endif
