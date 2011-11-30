@@ -3,5 +3,8 @@
 makefile
 libofetion/
 cliofetion_plus.vimentry
+.vimfiles.cliofetion_plus/
 bin/
 sample/
+script/
+cliofetion_plus_test.c
